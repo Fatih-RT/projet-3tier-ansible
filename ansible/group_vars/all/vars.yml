@@ -1,0 +1,6 @@
+# ansible/group_vars/all/vars.yml
+# Variables publiques qui référencent le vault
+
+db_password:       "{{ vault_db_password }}"
+grafana_password:  "{{ vault_grafana_password }}"
+flask_secret_key:  "{{ vault_flask_secret_key }}"

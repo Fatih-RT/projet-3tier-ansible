@@ -1,0 +1,24 @@
+[server]
+http_port = 3000
+
+[security]
+admin_user     = admin
+admin_password = {{ grafana_password }}
+
+[auth.anonymous]
+enabled = false
+
+[log]
+mode  = console
+level = warn
+
+[alerting]
+enabled = true
+
+[smtp]
+enabled    = false
+host       = smtp.gmail.com:587
+user       = votre@email.com
+password   = votre_mot_de_passe
+from_address = alerting@monprojet.com
+from_name    = Grafana Alerting

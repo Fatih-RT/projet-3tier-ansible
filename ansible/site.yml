@@ -1,0 +1,21 @@
+---
+# Playbook principal — orchestre tous les rôles
+# Exécution : ansible-playbook -i inventory.ini site.yml
+
+- name: Configuration du tier Nginx (load balancer)
+  hosts: nginx
+  become: true
+  roles:
+    - nginx
+
+- name: Déploiement du tier Flask (application)
+  hosts: flask
+  become: true
+  roles:
+    - flask
+
+- name: Déploiement du monitoring (Prometheus + Grafana)
+  hosts: monitoring
+  become: true
+  roles:
+    - monitoring

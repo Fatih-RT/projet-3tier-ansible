@@ -1,0 +1,81 @@
+---
+- name: Mise à jour du cache APT
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Installation des dépendances système
+  apt:
+    name:
+      - python3
+      - python3-pip
+      - python3-venv
+      - build-essential
+    state: present
+
+- name: Création de l'utilisateur applicatif
+  user:
+    name: flaskapp
+    system: yes
+    shell: /bin/false
+    home: /opt/flaskapp
+
+- name: Correction des permissions du home ubuntu
+  file:
+    path: /home/ubuntu
+    mode: '0755'
+
+- name: Création du répertoire de l'application
+  file:
+    path: /opt/flaskapp
+    state: directory
+    owner: flaskapp
+    group: flaskapp
+    mode: '0755'
+
+- name: Création du répertoire de logs
+  file:
+    path: /var/log/flask
+    state: directory
+    owner: flaskapp
+    group: flaskapp
+    mode: '0755'
+
+- name: Copie de l'application Flask
+  copy:
+    src: ../../../../app/
+    dest: /opt/flaskapp/
+    owner: flaskapp
+    group: flaskapp
+    mode: '0644'
+  notify: Restart Flask
+
+- name: Création de l'environnement virtuel Python
+  command: python3 -m venv /opt/flaskapp/venv
+  args:
+    creates: /opt/flaskapp/venv
+
+- name: Installation des dépendances Python
+  pip:
+    requirements: /opt/flaskapp/requirements.txt
+    virtualenv: /opt/flaskapp/venv
+
+- name: Déploiement du service systemd
+  template:
+    src: flask.service.j2
+    dest: /etc/systemd/system/flask.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify:
+    - Reload systemd
+    - Restart Flask
+
+- name: Activation et démarrage du service Flask
+  service:
+    name: flask
+    state: started
+    enabled: yes
+
+- name: Installation de Node Exporter (métriques Prometheus)
+  include_tasks: node_exporter.yml

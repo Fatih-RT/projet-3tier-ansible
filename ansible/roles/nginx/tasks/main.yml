@@ -1,0 +1,62 @@
+---
+- name: Mise à jour du cache APT
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Installation de Nginx et OpenSSL
+  apt:
+    name:
+      - nginx
+      - openssl
+    state: present
+
+- name: Création du répertoire SSL
+  file:
+    path: /etc/nginx/ssl
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Génération du certificat auto-signé
+  command: >
+    openssl req -x509 -nodes -days 365
+    -newkey rsa:2048
+    -keyout /etc/nginx/ssl/nginx.key
+    -out /etc/nginx/ssl/nginx.crt
+    -subj "/C=FR/ST=IDF/L=Paris/O=M1SRC/CN=localhost"
+  args:
+    creates: /etc/nginx/ssl/nginx.crt
+
+- name: Déploiement de la configuration Nginx (HTTPS + load balancer)
+  template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/sites-available/app
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Nginx
+
+- name: Activation du site
+  file:
+    src: /etc/nginx/sites-available/app
+    dest: /etc/nginx/sites-enabled/app
+    state: link
+  notify: Restart Nginx
+
+- name: Suppression du site par défaut
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Restart Nginx
+
+- name: Vérification de la configuration Nginx
+  command: nginx -t
+  changed_when: false
+
+- name: Activation et démarrage de Nginx
+  service:
+    name: nginx
+    state: started
+    enabled: yes

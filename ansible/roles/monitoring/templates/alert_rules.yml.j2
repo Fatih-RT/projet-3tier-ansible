@@ -1,0 +1,43 @@
+groups:
+  - name: infrastructure
+    rules:
+
+      # CPU > 80% pendant 2 minutes
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU élevé sur {{ $labels.instance }}"
+          description: "CPU à {{ $value }}% depuis 2 minutes"
+
+      # Instance down
+      - alert: InstanceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Instance {{ $labels.instance }} inaccessible"
+          description: "Node Exporter ne répond plus depuis 1 minute"
+
+      # Mémoire > 85%
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Mémoire élevée sur {{ $labels.instance }}"
+          description: "Utilisation mémoire à {{ $value }}%"
+
+      # Disque > 80%
+      - alert: DiskSpaceLow
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disque presque plein sur {{ $labels.instance }}"
+          description: "Disque utilisé à {{ $value }}%"

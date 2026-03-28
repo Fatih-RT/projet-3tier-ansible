@@ -1,0 +1,20 @@
+[Unit]
+Description=Flask Application (Gunicorn)
+After=network.target
+
+[Service]
+User=flaskapp
+Group=flaskapp
+WorkingDirectory=/opt/flaskapp
+Environment="PATH=/opt/flaskapp/venv/bin"
+ExecStart=/opt/flaskapp/venv/bin/gunicorn \
+    --workers 2 \
+    --bind 0.0.0.0:5000 \
+    --access-logfile /var/log/flask/access.log \
+    --error-logfile /var/log/flask/error.log \
+    app:app
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

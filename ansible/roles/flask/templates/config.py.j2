@@ -1,0 +1,16 @@
+import os
+
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'changeme-in-production')
+    
+    # Base de données MySQL (RDS)
+    DB_HOST     = "{{ db_host | regex_replace(':3306', '') }}"
+    DB_NAME     = "{{ db_name }}"
+    DB_USER     = "{{ db_user }}"
+    DB_PASSWORD = "{{ db_password }}"
+    
+    SQLALCHEMY_DATABASE_URI = (
+        f"mysql+mysqlclient://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
+    )
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    DEBUG = False

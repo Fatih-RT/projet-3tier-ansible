@@ -1,0 +1,26 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+terraform.tfvars
+.terraform.lock.hcl
+
+# Ansible
+ansible/inventory.ini
+
+# Clés SSH
+*.pem
+*.key
+id_*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.env
+
+# OS
+.DS_Store
+Thumbs.db

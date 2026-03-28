@@ -1,0 +1,29 @@
+upstream flask_backend {
+    # Répartition round-robin entre les 2 instances Flask
+    {% for host in groups['flask'] %}
+    server {{ hostvars[host]['ansible_host'] | default(host) }}:5000;
+    {% endfor %}
+}
+
+server {
+    listen 80;
+    server_name _;
+
+    access_log /var/log/nginx/app_access.log;
+    error_log  /var/log/nginx/app_error.log;
+
+    location / {
+        proxy_pass         http://flask_backend;
+        proxy_set_header   Host $host;
+        proxy_set_header   X-Real-IP $remote_addr;
+        proxy_set_header   X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout    30s;
+    }
+
+    location /health {
+        access_log off;
+        return 200 "OK\n";
+        add_header Content-Type text/plain;
+    }
+}

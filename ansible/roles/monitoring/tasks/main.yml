@@ -1,0 +1,121 @@
+---
+- name: Mise à jour du cache APT
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Création des répertoires
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /opt/prometheus
+    - /etc/prometheus
+    - /etc/prometheus/rules
+    - /var/lib/prometheus
+
+- name: Correction des permissions var/lib/prometheus
+  file:
+    path: /var/lib/prometheus
+    owner: nobody
+    group: nogroup
+    mode: '0755'
+
+- name: Téléchargement de Prometheus
+  get_url:
+    url: "https://github.com/prometheus/prometheus/releases/download/v2.49.0/prometheus-2.49.0.linux-amd64.tar.gz"
+    dest: /tmp/prometheus.tar.gz
+
+- name: Extraction de Prometheus
+  unarchive:
+    src: /tmp/prometheus.tar.gz
+    dest: /tmp/
+    remote_src: yes
+
+- name: Copie des binaires Prometheus
+  copy:
+    src: "/tmp/prometheus-2.49.0.linux-amd64/{{ item }}"
+    dest: "/usr/local/bin/{{ item }}"
+    remote_src: yes
+    mode: '0755'
+  loop:
+    - prometheus
+    - promtool
+
+- name: Déploiement des règles d'alerting
+  template:
+    src: alert_rules.yml.j2
+    dest: /etc/prometheus/rules/alert_rules.yml
+    mode: '0644'
+  notify: Restart Prometheus
+
+- name: Déploiement de la configuration Prometheus
+  template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    mode: '0644'
+  notify: Restart Prometheus
+
+- name: Service systemd Prometheus
+  copy:
+    content: |
+      [Unit]
+      Description=Prometheus
+      After=network.target
+
+      [Service]
+      User=nobody
+      ExecStart=/usr/local/bin/prometheus \
+        --config.file=/etc/prometheus/prometheus.yml \
+        --storage.tsdb.path=/var/lib/prometheus
+      Restart=on-failure
+      RestartSec=5
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/prometheus.service
+
+- name: Démarrage de Prometheus
+  service:
+    name: prometheus
+    state: started
+    enabled: yes
+    daemon_reload: yes
+
+- name: Installation des dépendances Grafana
+  apt:
+    name:
+      - apt-transport-https
+      - software-properties-common
+      - wget
+    state: present
+
+- name: Ajout de la clé GPG Grafana
+  shell: wget -q -O /usr/share/keyrings/grafana.key https://apt.grafana.com/gpg.key
+  args:
+    creates: /usr/share/keyrings/grafana.key
+
+- name: Ajout du dépôt Grafana
+  copy:
+    content: "deb [signed-by=/usr/share/keyrings/grafana.key] https://apt.grafana.com stable main\n"
+    dest: /etc/apt/sources.list.d/grafana.list
+
+- name: Installation de Grafana
+  apt:
+    name: grafana
+    state: present
+    update_cache: yes
+
+- name: Déploiement de la configuration Grafana
+  template:
+    src: grafana.ini.j2
+    dest: /etc/grafana/grafana.ini
+    mode: '0640'
+  notify: Restart Grafana
+
+- name: Démarrage de Grafana
+  service:
+    name: grafana-server
+    state: started
+    enabled: yes
