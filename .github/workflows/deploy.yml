@@ -1,0 +1,75 @@
+name: Deploy 3-Tier Infrastructure
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Permet de déclencher manuellement
+
+jobs:
+  deploy:
+    name: Terraform + Ansible
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ──────────────────────────────────────────
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      # ── Setup Terraform ───────────────────────────────────
+      - name: Installation de Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.7.0"
+
+      # ── Setup Ansible ─────────────────────────────────────
+      - name: Installation d'Ansible
+        run: |
+          pip install ansible
+
+      # ── Clé SSH ───────────────────────────────────────────
+      - name: Configuration de la clé SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519_projet
+          chmod 600 ~/.ssh/id_ed25519_projet
+          echo "${{ secrets.SSH_PUBLIC_KEY }}" > ~/.ssh/id_ed25519_projet.pub
+          chmod 644 ~/.ssh/id_ed25519_projet.pub
+          eval $(ssh-agent)
+          ssh-add ~/.ssh/id_ed25519_projet
+
+      # ── Vault password ────────────────────────────────────
+      - name: Création du fichier vault password
+        run: |
+          echo "${{ secrets.VAULT_PASSWORD }}" > ~/.vault_pass
+          chmod 600 ~/.vault_pass
+
+      # ── Terraform ─────────────────────────────────────────
+      - name: Terraform Init
+        working-directory: terraform
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: terraform
+        env:
+          AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          TF_VAR_db_password:    ${{ secrets.DB_PASSWORD }}
+        run: terraform apply -auto-approve
+
+      # ── Attente instances ─────────────────────────────────
+      - name: Attente démarrage instances (60s)
+        run: sleep 60
+
+      # ── Ansible ───────────────────────────────────────────
+      - name: Ansible Playbook
+        working-directory: ansible
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible-playbook -i inventory.ini site.yml \
+            --vault-password-file ~/.vault_pass \
+            --private-key ~/.ssh/id_ed25519_projet
